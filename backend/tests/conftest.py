@@ -36,6 +36,13 @@ async def test_engine():
 @pytest_asyncio.fixture
 async def app(test_engine):
     fastapi_app = create_app()
+
+    # Relax host allow-list for tests so target.test is accepted
+    from app.config import get_settings
+    settings = get_settings()
+    settings.allowed_scan_hosts = list(settings.allowed_scan_hosts) + ["target.test"]
+    settings.enforce_host_allowlist = True
+
     session_maker = async_sessionmaker(bind=test_engine, expire_on_commit=False)
 
     async def _get_test_db():

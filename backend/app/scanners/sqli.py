@@ -103,7 +103,7 @@ class SQLiScanner(BaseScanner):
 
             length_delta = abs(len(resp_true.text) - len(resp_false.text))
             status_differs = resp_true.status_code != resp_false.status_code
-            significant_length_diff = length_delta > 50 and len(resp_false.text) > 0
+            significant_length_diff = length_delta > 50
 
             if status_differs or significant_length_diff:
                 findings.append(

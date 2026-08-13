@@ -1,5 +1,6 @@
 import httpx
 import respx
+from urllib.parse import unquote_plus
 
 from app.scanners.base import ScanContext
 from app.scanners.sqli import SQLiScanner
@@ -42,11 +43,15 @@ async def test_detects_boolean_blind_injection():
     unsanitized."""
 
     def responder(request: httpx.Request) -> httpx.Response:
-        query = str(request.url.params.get("id", ""))
-        if "1=1" in query:
+        # Payloads are URL-encoded (e.g. 1+OR+1%3D1). Decode before matching.
+        decoded = unquote_plus(str(request.url)).lower()
+
+        if any(term in decoded for term in ["1=1", "1 or 1=1", "or 1=1"]):
             return httpx.Response(200, text="row " * 200)
-        if "1=2" in query:
+
+        if any(term in decoded for term in ["1=2", "1 and 1=2", "and 1=2"]):
             return httpx.Response(200, text="")
+
         return httpx.Response(200, text="normal-response-body")
 
     respx.get(url__regex=r"http://target\.test/api/items.*").mock(side_effect=responder)
@@ -87,7 +92,7 @@ def test_guess_query_param_extracts_placeholder_name():
     from app.scanners.sqli import _guess_query_param
 
     assert _guess_query_param("/api/orders/{order_id}") == "order_id"
-    assert _guess_query_param("/api/health") == "id"  # sensible fallback
+    assert _guess_query_param("/api/health") == "id"
 
 
 def test_strip_placeholder_substitutes_benign_default():
